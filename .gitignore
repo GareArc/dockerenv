@@ -1,0 +1,26 @@
+# Project env files (contain local config)
+*/.env
+!*/.env.example
+
+# Common dev artifacts
+**/node_modules/
+**/__pycache__/
+**/*.pyc
+**/.venv/
+**/target/
+**/.cache/
+**/dist/
+**/build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.log
