@@ -2,13 +2,19 @@ FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get clean && apt-get update && apt-getinstall -y --no-install-recommends \
     build-essential \
     curl \
     git \
     ca-certificates \
     bison \
+    bsdmainutils \
+    locales \
+    && locale-gen en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
+
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
 
 # Install nvm
 ENV NVM_DIR=/root/.nvm
