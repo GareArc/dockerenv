@@ -1,6 +1,15 @@
 # dockenv
 
-A simple, Makefile-driven Docker development environment manager. Create isolated dev containers for your projects with minimal boilerplate.
+A simple, Makefile-driven Docker development environment manager.
+
+**This repo manages your dev containers, not your code.** Your actual project code lives elsewhere and is volume-mounted into the container. Each project folder here only contains environment configuration (`docker-compose.yml` + `.env`).
+
+## Why?
+
+- Keep dev environments isolated and reproducible
+- Don't pollute your host machine with language runtimes and tools
+- Spin up/down environments with simple commands
+- Share consistent Dockerfiles across projects
 
 ## Features
 
@@ -13,17 +22,21 @@ A simple, Makefile-driven Docker development environment manager. Create isolate
 ## Quick Start
 
 ```bash
-# Clone the repo
-git clone https://github.com/YOUR_USERNAME/dockenv.git
-cd dockenv
+# Clone the template
+gh repo create my-dockenv --template GareArc/dockenv --clone
+cd my-dockenv
 
-# Create a new project
+# Create a new dev environment
 make init PROJECT=myapp BASE=node-go
+
+# Edit myapp/docker-compose.yml to mount your project code:
+#   volumes:
+#     - /path/to/your/actual/project:/app
 
 # Start the container
 make up PROJECT=myapp
 
-# Shell into it
+# Shell into it and start developing
 make shell PROJECT=myapp
 
 # Stop when done
@@ -62,18 +75,25 @@ make clean                        # Prune Docker system
 ## Project Structure
 
 ```
-dockenv/
+dockenv/                     # This repo - manages environments
 ├── Makefile                 # All the automation
 ├── dockerfiles/             # Shared base images
 │   ├── node-go.Dockerfile
 │   └── python-uv.Dockerfile
-├── myapp/                   # Your project
-│   ├── docker-compose.yml
+├── myapp/                   # Environment config only
+│   ├── docker-compose.yml   # Mounts your actual code via volume
 │   └── .env
 └── another-project/
     ├── docker-compose.yml
     └── .env
+
+~/code/myapp/                # Your actual project (elsewhere)
+├── src/
+├── package.json
+└── ...
 ```
+
+The project folders in this repo only contain Docker environment config. Your actual source code stays in its own location and is mounted into `/app` in the container.
 
 ## Customization
 
