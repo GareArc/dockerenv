@@ -21,7 +21,7 @@ BASES := $(shell ls -1 $(DOCKERFILES_DIR)/*.Dockerfile 2>/dev/null | xargs -I{} 
 # Auto-discover projects (directories containing docker-compose.yml or compose.yml)
 PROJECTS := $(shell find . -maxdepth 2 -name 'docker-compose.yml' -o -name 'compose.yml' | xargs -I{} dirname {} | sed 's|^\./||' | grep -v dockerfiles | sort -u)
 
-.PHONY: help list ps up down up-all down-all logs shell build clean init bases
+.PHONY: help list ps up down up-all down-all logs shell build clean init bases build-bases build-base
 
 help:
 	@echo "Docker Dev Environment Manager"
@@ -38,6 +38,8 @@ help:
 	@echo "  make list                         List available projects"
 	@echo "  make init PROJECT=<name> BASE=<x> Create new project"
 	@echo "  make bases                        List available base images"
+	@echo "  make build-bases                  Build all base images"
+	@echo "  make build-base BASE=<x>          Build a specific base image"
 	@echo ""
 	@echo "Available projects:"
 	@$(MAKE) --no-print-directory list
@@ -56,6 +58,31 @@ bases:
 	@for base in $(BASES); do \
 		echo "  - $$base"; \
 	done
+
+# Image naming convention
+IMAGE_PREFIX := dockerenv
+
+# Build all base images (run once, then projects reuse them)
+build-bases:
+	@echo "Building all base images..."
+	@for base in $(BASES); do \
+		echo "Building $(IMAGE_PREFIX)-$$base:latest..."; \
+		docker build -t $(IMAGE_PREFIX)-$$base:latest -f $(DOCKERFILES_DIR)/$$base.Dockerfile $(DOCKERFILES_DIR); \
+	done
+	@echo "Done. All base images built."
+
+# Build a specific base image
+build-base:
+	@if [ -z "$(BASE)" ]; then \
+		echo "Error: BASE is required. Usage: make build-base BASE=<name>"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(DOCKERFILES_DIR)/$(BASE).Dockerfile" ]; then \
+		echo "Error: Base '$(BASE)' not found"; \
+		exit 1; \
+	fi
+	@echo "Building $(IMAGE_PREFIX)-$(BASE):latest..."
+	docker build -t $(IMAGE_PREFIX)-$(BASE):latest -f $(DOCKERFILES_DIR)/$(BASE).Dockerfile $(DOCKERFILES_DIR)
 
 # Find the compose file for a project
 define get_compose_file
@@ -172,25 +199,25 @@ init:
 		exit 1; \
 	fi
 	@echo "Creating project: $(PROJECT) (base: $(BASE))"
+	@# Build the base image if it doesn't exist
+	@if ! docker image inspect $(IMAGE_PREFIX)-$(BASE):latest >/dev/null 2>&1; then \
+		echo "Building base image $(IMAGE_PREFIX)-$(BASE):latest..."; \
+		docker build -t $(IMAGE_PREFIX)-$(BASE):latest -f $(DOCKERFILES_DIR)/$(BASE).Dockerfile $(DOCKERFILES_DIR); \
+	fi
 	@mkdir -p $(PROJECT)
 	@echo 'services:' > $(PROJECT)/docker-compose.yml
 	@echo '  app:' >> $(PROJECT)/docker-compose.yml
-	@echo '    build:' >> $(PROJECT)/docker-compose.yml
-	@echo '      context: .' >> $(PROJECT)/docker-compose.yml
-	@echo '      dockerfile: ../dockerfiles/$(BASE).Dockerfile' >> $(PROJECT)/docker-compose.yml
+	@echo '    image: $(IMAGE_PREFIX)-$(BASE):latest' >> $(PROJECT)/docker-compose.yml
 	@echo '    volumes:' >> $(PROJECT)/docker-compose.yml
 	@echo '      - .:/app' >> $(PROJECT)/docker-compose.yml
 	@echo '    ports:' >> $(PROJECT)/docker-compose.yml
 	@echo '      - "$${APP_PORT:-8080}:8080"' >> $(PROJECT)/docker-compose.yml
-	@echo '    environment:' >> $(PROJECT)/docker-compose.yml
-	@echo '      - ANTHROPIC_API_KEY=$${ANTHROPIC_API_KEY:-}' >> $(PROJECT)/docker-compose.yml
 	@echo '    stdin_open: true' >> $(PROJECT)/docker-compose.yml
 	@echo '    tty: true' >> $(PROJECT)/docker-compose.yml
 	@echo 'APP_PORT=8080' > $(PROJECT)/.env
-	@echo '# ANTHROPIC_API_KEY=sk-ant-...' >> $(PROJECT)/.env
 	@echo ""
 	@echo "Created $(PROJECT)/"
-	@echo "  ├── docker-compose.yml  (uses dockerfiles/$(BASE).Dockerfile)"
+	@echo "  ├── docker-compose.yml  (uses image: $(IMAGE_PREFIX)-$(BASE):latest)"
 	@echo "  └── .env"
 	@echo ""
 	@echo "Next: make up PROJECT=$(PROJECT)"
