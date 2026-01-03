@@ -1,4 +1,4 @@
-# dockenv
+# dockerenv
 
 A simple, Makefile-driven Docker development environment manager.
 
@@ -23,8 +23,8 @@ A simple, Makefile-driven Docker development environment manager.
 
 ```bash
 # Clone the template
-gh repo create my-dockenv --template GareArc/dockenv --clone
-cd my-dockenv
+gh repo create my-dockerenv --template GareArc/dockerenv --clone
+cd my-dockerenv
 
 # Create a new dev environment
 make init PROJECT=myapp BASE=node-go
@@ -75,7 +75,7 @@ make clean                        # Prune Docker system
 ## Project Structure
 
 ```
-dockenv/                     # This repo - manages environments
+dockerenv/                   # This repo - manages environments
 ├── Makefile                 # All the automation
 ├── dockerfiles/             # Shared base images
 │   ├── node-go.Dockerfile
