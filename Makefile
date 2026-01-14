@@ -40,6 +40,7 @@ help:
 	@echo "  make bases                        List available base images"
 	@echo "  make build-bases                  Build all base images"
 	@echo "  make build-base BASE=<x>          Build a specific base image"
+	@echo "  make build-base-opencode          Build OpenCode base image"
 	@echo ""
 	@echo "Available projects:"
 	@$(MAKE) --no-print-directory list
@@ -62,12 +63,20 @@ bases:
 # Image naming convention
 IMAGE_PREFIX := dockerenv
 
+# Build OpenCode base image (required for derived images)
+build-base-opencode:
+	@echo "Building OpenCode base image..."
+	docker build -t $(IMAGE_PREFIX)-opencode-base:latest -f $(DOCKERFILES_DIR)/opencode-base.Dockerfile $(DOCKERFILES_DIR)
+	@echo "OpenCode base image built: $(IMAGE_PREFIX)-opencode-base:latest"
+
 # Build all base images (run once, then projects reuse them)
-build-bases:
-	@echo "Building all base images..."
+build-bases: build-base-opencode
+	@echo "Building all derived images..."
 	@for base in $(BASES); do \
-		echo "Building $(IMAGE_PREFIX)-$$base:latest..."; \
-		docker build -t $(IMAGE_PREFIX)-$$base:latest -f $(DOCKERFILES_DIR)/$$base.Dockerfile $(DOCKERFILES_DIR); \
+		if [ "$$base" != "opencode-base" ]; then \
+			echo "Building $(IMAGE_PREFIX)-$$base:latest..."; \
+			docker build -t $(IMAGE_PREFIX)-$$base:latest -f $(DOCKERFILES_DIR)/$$base.Dockerfile $(DOCKERFILES_DIR); \
+		fi \
 	done
 	@echo "Done. All base images built."
 
@@ -209,11 +218,40 @@ init:
 	@echo '  app:' >> $(PROJECT)/docker-compose.yml
 	@echo '    image: $(IMAGE_PREFIX)-$(BASE):latest' >> $(PROJECT)/docker-compose.yml
 	@echo '    volumes:' >> $(PROJECT)/docker-compose.yml
+	@echo '      # Project code' >> $(PROJECT)/docker-compose.yml
 	@echo '      - .:/app' >> $(PROJECT)/docker-compose.yml
+	@echo '' >> $(PROJECT)/docker-compose.yml
+	@echo '      # OpenCode: Shared from host' >> $(PROJECT)/docker-compose.yml
+	@echo '      - $${HOME}/.opencode:/root/.opencode' >> $(PROJECT)/docker-compose.yml
+	@echo '      - $${HOME}/.config/opencode:/root/.config/opencode:ro' >> $(PROJECT)/docker-compose.yml
+	@echo '      - $${HOME}/.local/share/opencode/auth.json:/root/.local/share/opencode/auth.json' >> $(PROJECT)/docker-compose.yml
+	@echo '' >> $(PROJECT)/docker-compose.yml
+	@echo '      # OpenCode: Isolated per container' >> $(PROJECT)/docker-compose.yml
+	@echo '      - opencode-sessions-$(PROJECT):/root/.local/share/opencode/sessions' >> $(PROJECT)/docker-compose.yml
+	@echo '      - opencode-snapshots-$(PROJECT):/root/.local/share/opencode/snapshot' >> $(PROJECT)/docker-compose.yml
+	@echo '      - opencode-storage-$(PROJECT):/root/.local/share/opencode/storage' >> $(PROJECT)/docker-compose.yml
+	@echo '      - opencode-bin-$(PROJECT):/root/.local/share/opencode/bin' >> $(PROJECT)/docker-compose.yml
+	@echo '      - opencode-log-$(PROJECT):/root/.local/share/opencode/log' >> $(PROJECT)/docker-compose.yml
+	@echo '      - opencode-tool-output-$(PROJECT):/root/.local/share/opencode/tool-output' >> $(PROJECT)/docker-compose.yml
+	@echo '      - opencode-cache-$(PROJECT):/root/.cache/opencode' >> $(PROJECT)/docker-compose.yml
+	@echo '      - oh-my-opencode-cache-$(PROJECT):/root/.cache/oh-my-opencode' >> $(PROJECT)/docker-compose.yml
+	@echo '      - opencode-state-$(PROJECT):/root/.local/state/opencode' >> $(PROJECT)/docker-compose.yml
+	@echo '' >> $(PROJECT)/docker-compose.yml
 	@echo '    ports:' >> $(PROJECT)/docker-compose.yml
 	@echo '      - "$${APP_PORT:-8080}:8080"' >> $(PROJECT)/docker-compose.yml
 	@echo '    stdin_open: true' >> $(PROJECT)/docker-compose.yml
 	@echo '    tty: true' >> $(PROJECT)/docker-compose.yml
+	@echo '' >> $(PROJECT)/docker-compose.yml
+	@echo 'volumes:' >> $(PROJECT)/docker-compose.yml
+	@echo '  opencode-sessions-$(PROJECT):' >> $(PROJECT)/docker-compose.yml
+	@echo '  opencode-snapshots-$(PROJECT):' >> $(PROJECT)/docker-compose.yml
+	@echo '  opencode-storage-$(PROJECT):' >> $(PROJECT)/docker-compose.yml
+	@echo '  opencode-bin-$(PROJECT):' >> $(PROJECT)/docker-compose.yml
+	@echo '  opencode-log-$(PROJECT):' >> $(PROJECT)/docker-compose.yml
+	@echo '  opencode-tool-output-$(PROJECT):' >> $(PROJECT)/docker-compose.yml
+	@echo '  opencode-cache-$(PROJECT):' >> $(PROJECT)/docker-compose.yml
+	@echo '  oh-my-opencode-cache-$(PROJECT):' >> $(PROJECT)/docker-compose.yml
+	@echo '  opencode-state-$(PROJECT):' >> $(PROJECT)/docker-compose.yml
 	@echo 'APP_PORT=8080' > $(PROJECT)/.env
 	@echo ""
 	@echo "Created $(PROJECT)/"
